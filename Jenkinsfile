@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
 
-        EMAIL_BODY = 
+        EMAIL_BODY =
 
         """
 
@@ -10,40 +10,40 @@ pipeline {
 
             <p>
 
-            View console output at 
+            View console output at
 
             "<a href="${env.BUILD_URL}">${env.JOB_NAME}:${env.BUILD_NUMBER}</a>"
 
-            </p> 
+            </p>
 
             <p><i>(Build log is attached.)</i></p>
 
         """
 
-        EMAIL_SUBJECT_SUCCESS = "Status: 'SUCCESS' -Job \'${env.JOB_NAME}:${env.BUILD_NUMBER}\'" 
+        EMAIL_SUBJECT_SUCCESS = "Status: 'SUCCESS' -Job \'${env.JOB_NAME}:${env.BUILD_NUMBER}\'"
 
-        EMAIL_SUBJECT_FAILURE = "Status: 'FAILURE' -Job \'${env.JOB_NAME}:${env.BUILD_NUMBER}\'" 
+        EMAIL_SUBJECT_FAILURE = "Status: 'FAILURE' -Job \'${env.JOB_NAME}:${env.BUILD_NUMBER}\'"
 
         EMAIL_RECEPIENT = 'ruddykani@gmail.com'
-        
+
 
     }
-    tools { 
+    tools {
     gradle "Gradle-6"
     }
-    stages { 
+    stages {
         stage('clone repository') {
-          steps { 
+          steps {
             git 'https://github.com/RuddyKani/java-todo-jenkins.git'
           }
         }
         stage('Build project') {
-            steps { 
+            steps {
                 sh 'gradle build'
             }
         }
         stage('Tests') {
-          steps { 
+          steps {
             sh 'gradle test'
           }
         }
@@ -54,11 +54,25 @@ pipeline {
                     }
             }
         }
+        stage('SonarScan') {
+            environment {
+                SCANNER_HOME = tool 'SonarQubeScanner'
+                SONAR_TOKEN = credentials('sonar')
+                PROJECT_NAME = "java-todo-jenkins"
+            }
+            steps {
+                withSonarQubeEnv(installationName: 'TodoSonarQubeScanner', credentialsId: 'sonar') {
+                    sh '''$SCANNER_HOME/bin/sonar-scanner -Dsonar.java.binaries=build/classes/java/ \
+                    -Dsonar.projectKey=$PROJECT_NAME \
+                    -Dsonar.sources=.'''
+                }
+            }
+        }
     }
     post {
         success {
-            emailext attachLog: true, 
-                body: EMAIL_BODY, 
+            emailext attachLog: true,
+                body: EMAIL_BODY,
 
                 subject: EMAIL_SUBJECT_SUCCESS,
 
@@ -66,10 +80,10 @@ pipeline {
         }
 
         failure {
-            emailext attachLog: true, 
-                body: EMAIL_BODY, 
+            emailext attachLog: true,
+                body: EMAIL_BODY,
 
-                subject: EMAIL_SUBJECT_FAILURE, 
+                subject: EMAIL_SUBJECT_FAILURE,
 
                 to: EMAIL_RECEPIENT
         }
